@@ -584,7 +584,7 @@ const Game = {
             for (let row = 0; row < currentPiece.shape.length; row++) {
                 for (let col = 0; col < currentPiece.shape[row].length; col++) {
                     if (currentPiece.shape[row][col]) {
-                        this.drawCell(ctx, ghostY + row, currentPiece.x + col, colors.normal[currentPiece.colorIndex], side, true);
+                        this.drawCell(ctx, currentPiece.x + col, ghostY + row, colors.normal[currentPiece.colorIndex], side, true);
                     }
                 }
             }
@@ -715,7 +715,14 @@ const Game = {
     },
     
     start: function() {
-        if (this.isRunning) return;
+        if (this.isRunning) {
+            if (this.gameLoop) {
+                cancelAnimationFrame(this.gameLoop);
+                this.gameLoop = null;
+            }
+            this.closeSyncWindow();
+            this.isRunning = false;
+        }
         
         this.reset();
         this.isRunning = true;
