@@ -332,14 +332,121 @@ const Game = {
         
         const mirrorDx = -dx;
         
-        if (!this.checkCollision(this.boardLeft, this.currentPieceLeft, dx, dy) &&
-            !this.checkCollision(this.boardRight, this.currentPieceRight, mirrorDx, -dy)) {
+        const canMoveLeft = !this.checkCollision(this.boardLeft, this.currentPieceLeft, dx, dy);
+        const canMoveRight = !this.checkCollision(this.boardRight, this.currentPieceRight, mirrorDx, -dy);
+        
+        if (canMoveLeft && canMoveRight) {
             this.currentPieceLeft.x += dx;
             this.currentPieceLeft.y += dy;
             this.currentPieceRight.x += mirrorDx;
             this.currentPieceRight.y += -dy;
             this.draw();
+        } else if (dx !== 0) {
+            this.tryMoveToBoundary(dx, dy);
         }
+    },
+    
+    tryMoveToBoundary: function(dx, dy) {
+        const mirrorDx = -dx;
+        
+        let canMoveLeftAny = !this.checkBoardCollisionOnly(this.boardLeft, this.currentPieceLeft, dx, dy);
+        let canMoveRightAny = !this.checkBoardCollisionOnly(this.boardRight, this.currentPieceRight, mirrorDx, -dy);
+        
+        if (!canMoveLeftAny && !canMoveRightAny) {
+            return;
+        }
+        
+        let maxLeftMove = this.calculateMaxMoveToBoundary(this.currentPieceLeft, this.boardLeft, dx, dy);
+        let maxRightMove = this.calculateMaxMoveToBoundary(this.currentPieceRight, this.boardRight, mirrorDx, -dy);
+        
+        if (maxLeftMove === 0 && maxRightMove === 0) {
+            return;
+        }
+        
+        let moved = false;
+        
+        if (maxLeftMove > 0) {
+            const actualDx = dx > 0 ? maxLeftMove : -maxLeftMove;
+            this.currentPieceLeft.x += actualDx;
+            moved = true;
+        }
+        
+        if (maxRightMove > 0) {
+            const actualDx = mirrorDx > 0 ? maxRightMove : -maxRightMove;
+            this.currentPieceRight.x += actualDx;
+            moved = true;
+        }
+        
+        if (moved) {
+            this.draw();
+        }
+    },
+    
+    checkBoardCollisionOnly: function(board, piece, dx, dy) {
+        for (let row = 0; row < piece.shape.length; row++) {
+            for (let col = 0; col < piece.shape[row].length; col++) {
+                if (piece.shape[row][col]) {
+                    const newX = piece.x + col + dx;
+                    const newY = piece.y + row + dy;
+                    
+                    if (newX >= 0 && newX < this.COLS && newY >= 0 && newY < this.ROWS) {
+                        if (board[newY][newX]) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        return false;
+    },
+    
+    calculateMaxMoveToBoundary: function(piece, board, dx, dy) {
+        if (dx === 0) return 0;
+        
+        let maxMove = 0;
+        const stepX = dx > 0 ? 1 : -1;
+        
+        while (true) {
+            const testX = stepX * (maxMove + 1);
+            
+            let willHitBoundary = false;
+            let willHitBlock = false;
+            
+            for (let row = 0; row < piece.shape.length; row++) {
+                for (let col = 0; col < piece.shape[row].length; col++) {
+                    if (piece.shape[row][col]) {
+                        const newX = piece.x + col + testX;
+                        const newY = piece.y + row;
+                        
+                        if (newX < 0 || newX >= this.COLS) {
+                            willHitBoundary = true;
+                        }
+                        
+                        if (newX >= 0 && newX < this.COLS && newY >= 0 && newY < this.ROWS) {
+                            if (board[newY][newX]) {
+                                willHitBlock = true;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            if (willHitBlock) {
+                break;
+            }
+            
+            if (willHitBoundary) {
+                if (maxMove > 0) {
+                    return maxMove;
+                }
+                break;
+            }
+            
+            maxMove++;
+            if (maxMove >= this.COLS) break;
+        }
+        
+        return maxMove;
     },
     
     movePieceSingleSide: function(dx, dy) {
