@@ -12,24 +12,24 @@ body {
 }
 
 #game-container {
-    max-width: 1200px;
+    max-width: 1400px;
     margin: 0 auto;
-    padding: 20px;
+    padding: 10px 20px;
 }
 
 #header {
     text-align: center;
-    margin-bottom: 30px;
+    margin-bottom: 15px;
 }
 
 #header h1 {
-    font-size: 3rem;
+    font-size: 2rem;
     background: linear-gradient(90deg, #4fc3f7, #e91e63);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
-    text-shadow: 0 0 30px rgba(79, 195, 247, 0.5);
-    margin-bottom: 10px;
+    text-shadow: 0 0 20px rgba(79, 195, 247, 0.5);
+    margin-bottom: 5px;
     animation: glow 2s ease-in-out infinite alternate;
 }
 
@@ -43,15 +43,16 @@ body {
 }
 
 #header h2 {
-    font-size: 1.5rem;
+    font-size: 1.1rem;
     color: #a0a0a0;
-    margin-bottom: 20px;
+    margin-bottom: 10px;
 }
 
 #score-panel {
     display: flex;
     justify-content: center;
-    gap: 50px;
+    gap: 25px;
+    margin-bottom: 10px;
 }
 
 .score-item {
@@ -62,13 +63,13 @@ body {
 
 .score-item .label {
     color: #666;
-    font-size: 0.9rem;
-    margin-bottom: 5px;
+    font-size: 0.8rem;
+    margin-bottom: 2px;
 }
 
 .score-item span:last-child {
     color: #fff;
-    font-size: 1.8rem;
+    font-size: 1.3rem;
     font-weight: bold;
     text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
 }
@@ -77,15 +78,15 @@ body {
     display: flex;
     justify-content: center;
     align-items: flex-start;
-    gap: 30px;
-    margin-bottom: 30px;
+    gap: 15px;
+    margin-bottom: 15px;
 }
 
 .board-container {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 15px;
+    gap: 8px;
 }
 
 #left-board .board-header {
@@ -150,8 +151,8 @@ body {
 
 .next-piece {
     text-align: center;
-    padding: 15px;
-    border-radius: 10px;
+    padding: 8px 10px;
+    border-radius: 8px;
 }
 
 #left-board .next-piece {
@@ -166,32 +167,32 @@ body {
 
 .next-piece h4 {
     color: #aaa;
-    margin-bottom: 10px;
-    font-size: 0.9rem;
+    margin-bottom: 5px;
+    font-size: 0.8rem;
 }
 
 #center-panel {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 20px;
-    padding: 20px;
+    gap: 10px;
+    padding: 10px;
 }
 
 #sync-indicator {
     text-align: center;
-    padding: 20px 30px;
+    padding: 10px 15px;
     background: linear-gradient(135deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
-    border-radius: 15px;
+    border-radius: 10px;
     border: 2px solid rgba(255, 255, 255, 0.1);
-    min-width: 200px;
+    min-width: 180px;
 }
 
 .sync-status {
-    font-size: 1.2rem;
+    font-size: 1rem;
     color: #4fc3f7;
     font-weight: bold;
-    margin-bottom: 10px;
+    margin-bottom: 5px;
     transition: all 0.3s ease;
 }
 
@@ -202,11 +203,11 @@ body {
 
 @keyframes pulse {
     0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.1); }
+    50% { transform: scale(1.05); }
 }
 
 .sync-timer {
-    font-size: 1.5rem;
+    font-size: 1.2rem;
     color: #ffeb3b;
     font-weight: bold;
     text-shadow: 0 0 10px rgba(255, 235, 59, 0.5);
@@ -214,27 +215,27 @@ body {
 
 #controls-info {
     background: rgba(255, 255, 255, 0.03);
-    border-radius: 15px;
-    padding: 20px;
+    border-radius: 10px;
+    padding: 10px 15px;
     border: 1px solid rgba(255, 255, 255, 0.1);
-    min-width: 200px;
+    min-width: 180px;
 }
 
 #controls-info h3 {
     color: #fff;
-    margin-bottom: 15px;
+    margin-bottom: 8px;
     text-align: center;
-    font-size: 1.1rem;
+    font-size: 0.95rem;
 }
 
 .control-item {
     display: flex;
     align-items: center;
-    gap: 10px;
-    margin-bottom: 10px;
-    padding: 8px 10px;
+    gap: 8px;
+    margin-bottom: 5px;
+    padding: 4px 8px;
     background: rgba(255, 255, 255, 0.02);
-    border-radius: 8px;
+    border-radius: 5px;
 }
 
 .control-item:last-child {
@@ -243,34 +244,34 @@ body {
 
 .key {
     display: inline-block;
-    min-width: 40px;
-    padding: 5px 10px;
+    min-width: 30px;
+    padding: 3px 8px;
     background: linear-gradient(180deg, #444, #222);
     border: 1px solid #666;
-    border-radius: 5px;
+    border-radius: 4px;
     color: #fff;
     text-align: center;
     font-weight: bold;
-    font-size: 0.9rem;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+    font-size: 0.8rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
 .action {
     color: #aaa;
-    font-size: 0.85rem;
+    font-size: 0.75rem;
 }
 
 #start-btn, #restart-btn {
-    padding: 15px 50px;
-    font-size: 1.2rem;
+    padding: 10px 35px;
+    font-size: 1rem;
     font-weight: bold;
     color: #fff;
     background: linear-gradient(135deg, #4fc3f7, #2196f3);
     border: none;
-    border-radius: 10px;
+    border-radius: 8px;
     cursor: pointer;
     transition: all 0.3s ease;
-    box-shadow: 0 5px 20px rgba(79, 195, 247, 0.4);
+    box-shadow: 0 4px 15px rgba(79, 195, 247, 0.4);
 }
 
 #start-btn:hover, #restart-btn:hover {
@@ -383,14 +384,15 @@ body {
 }
 
 .mode-option {
-    padding: 10px 30px;
+    padding: 8px 20px;
     background: rgba(255, 255, 255, 0.05);
     border: 2px solid rgba(255, 255, 255, 0.1);
-    border-radius: 10px;
+    border-radius: 8px;
     color: #aaa;
     cursor: pointer;
     transition: all 0.3s ease;
     font-weight: bold;
+    font-size: 0.9rem;
 }
 
 .mode-option:hover {
@@ -402,14 +404,14 @@ body {
     background: linear-gradient(135deg, rgba(79, 195, 247, 0.3), rgba(233, 30, 99, 0.3));
     border-color: #4fc3f7;
     color: #fff;
-    box-shadow: 0 0 20px rgba(79, 195, 247, 0.3);
+    box-shadow: 0 0 15px rgba(79, 195, 247, 0.3);
 }
 
 .power-ups {
     text-align: center;
-    padding: 15px;
-    border-radius: 10px;
-    margin-top: 10px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    margin-top: 8px;
 }
 
 #left-board .power-ups {
@@ -424,18 +426,18 @@ body {
 
 .power-ups h4 {
     color: #aaa;
-    margin-bottom: 15px;
-    font-size: 0.9rem;
+    margin-bottom: 8px;
+    font-size: 0.8rem;
 }
 
 .power-up-slot {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 10px;
-    margin-bottom: 8px;
+    gap: 6px;
+    padding: 6px 8px;
+    margin-bottom: 5px;
     background: rgba(255, 255, 255, 0.03);
-    border-radius: 8px;
+    border-radius: 5px;
     border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
@@ -492,18 +494,18 @@ body {
 
 #bond-indicator {
     text-align: center;
-    padding: 15px 25px;
+    padding: 8px 15px;
     background: linear-gradient(135deg, rgba(76, 175, 80, 0.1), rgba(139, 195, 74, 0.05));
-    border-radius: 15px;
+    border-radius: 10px;
     border: 2px solid rgba(76, 175, 80, 0.3);
-    min-width: 200px;
+    min-width: 180px;
 }
 
 .bond-status {
-    font-size: 1.1rem;
+    font-size: 0.95rem;
     color: #aaa;
     font-weight: bold;
-    margin-bottom: 5px;
+    margin-bottom: 3px;
     transition: all 0.3s ease;
 }
 
@@ -513,7 +515,7 @@ body {
 }
 
 .bond-multiplier {
-    font-size: 1.3rem;
+    font-size: 1.1rem;
     color: #ffeb3b;
     font-weight: bold;
     text-shadow: 0 0 10px rgba(255, 235, 59, 0.5);
@@ -521,11 +523,11 @@ body {
 
 #gravity-reverse-indicator {
     text-align: center;
-    padding: 15px 25px;
+    padding: 8px 15px;
     background: linear-gradient(135deg, rgba(255, 235, 59, 0.2), rgba(255, 152, 0, 0.1));
-    border-radius: 15px;
+    border-radius: 10px;
     border: 2px solid rgba(255, 235, 59, 0.5);
-    min-width: 200px;
+    min-width: 180px;
     animation: glowYellow 1s ease-in-out infinite alternate;
 }
 
