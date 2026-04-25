@@ -24,6 +24,15 @@
                     <span class="label">行数</span>
                     <span id="lines">0</span>
                 </div>
+                <div class="score-item">
+                    <span class="label">连击</span>
+                    <span id="combo">0</span>
+                </div>
+            </div>
+            
+            <div id="mode-selector">
+                <div class="mode-option active" data-mode="classic">经典模式</div>
+                <div class="mode-option" data-mode="tower">悖论之塔</div>
             </div>
         </div>
         
@@ -41,12 +50,56 @@
                     <h4>下一个</h4>
                     <canvas id="next-left" width="120" height="120"></canvas>
                 </div>
+                <div class="power-ups" id="power-ups-left">
+                    <h4>道具栏</h4>
+                    <div class="power-up-slot" id="slot-left-1">
+                        <span class="slot-key">1</span>
+                        <div class="slot-icon" id="icon-left-1"></div>
+                        <span class="slot-count" id="count-left-1">0</span>
+                    </div>
+                    <div class="power-up-slot" id="slot-left-2">
+                        <span class="slot-key">2</span>
+                        <div class="slot-icon" id="icon-left-2"></div>
+                        <span class="slot-count" id="count-left-2">0</span>
+                    </div>
+                    <div class="power-up-slot" id="slot-left-3">
+                        <span class="slot-key">3</span>
+                        <div class="slot-icon" id="icon-left-3"></div>
+                        <span class="slot-count" id="count-left-3">0</span>
+                    </div>
+                </div>
             </div>
             
             <div id="center-panel">
+                <div id="tower-info" class="hidden">
+                    <div class="tower-level">
+                        <span class="label">当前层数</span>
+                        <span id="tower-level">1</span>
+                    </div>
+                    <div class="tower-goal">
+                        <span class="label">目标</span>
+                        <span id="tower-goal">消除 10 行</span>
+                    </div>
+                    <div class="tower-progress">
+                        <div class="progress-bar">
+                            <div id="progress-fill" class="progress-fill" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+                
                 <div id="sync-indicator">
                     <div class="sync-status" id="sync-status">准备就绪</div>
                     <div class="sync-timer" id="sync-timer"></div>
+                </div>
+                
+                <div id="bond-indicator">
+                    <div class="bond-status" id="bond-status">未羁绊</div>
+                    <div class="bond-multiplier" id="bond-multiplier">x1.0</div>
+                </div>
+                
+                <div id="gravity-reverse-indicator" class="hidden">
+                    <div class="reverse-status" id="reverse-status">重力反转中</div>
+                    <div class="reverse-timer" id="reverse-timer">5.0s</div>
                 </div>
                 
                 <div id="controls-info">
@@ -70,6 +123,14 @@
                     <div class="control-item">
                         <span class="key">空格</span>
                         <span class="action">瞬间下落</span>
+                    </div>
+                    <div class="control-item">
+                        <span class="key">1/2/3</span>
+                        <span class="action">使用左侧道具</span>
+                    </div>
+                    <div class="control-item">
+                        <span class="key">7/8/9</span>
+                        <span class="action">使用右侧道具</span>
                     </div>
                     <div class="control-item">
                         <span class="key">P</span>
@@ -97,6 +158,24 @@
                     <h4>下一个</h4>
                     <canvas id="next-right" width="120" height="120"></canvas>
                 </div>
+                <div class="power-ups" id="power-ups-right">
+                    <h4>道具栏</h4>
+                    <div class="power-up-slot" id="slot-right-1">
+                        <span class="slot-key">7</span>
+                        <div class="slot-icon" id="icon-right-1"></div>
+                        <span class="slot-count" id="count-right-1">0</span>
+                    </div>
+                    <div class="power-up-slot" id="slot-right-2">
+                        <span class="slot-key">8</span>
+                        <div class="slot-icon" id="icon-right-2"></div>
+                        <span class="slot-count" id="count-right-2">0</span>
+                    </div>
+                    <div class="power-up-slot" id="slot-right-3">
+                        <span class="slot-key">9</span>
+                        <div class="slot-icon" id="icon-right-3"></div>
+                        <span class="slot-count" id="count-right-3">0</span>
+                    </div>
+                </div>
             </div>
         </div>
         
@@ -113,6 +192,39 @@
                 <h2>同步消除!</h2>
                 <p>全屏清空</p>
                 <p class="bonus">+10000 分</p>
+            </div>
+        </div>
+        
+        <div id="bond-effect" class="hidden">
+            <div class="bond-effect-content">
+                <h2 id="bond-effect-title">羁绊达成!</h2>
+                <p id="bond-effect-desc">镜像羁绊激活</p>
+                <p class="bonus" id="bond-effect-bonus">+0 分</p>
+            </div>
+        </div>
+        
+        <div id="card-selection" class="hidden">
+            <div class="card-selection-content">
+                <h2 id="card-title">选择一张卡牌</h2>
+                <p id="card-subtitle">第 X 层奖励</p>
+                <div id="cards-container">
+                </div>
+            </div>
+        </div>
+        
+        <div id="tower-complete" class="hidden">
+            <div class="tower-complete-content">
+                <h2>恭喜通关!</h2>
+                <p id="tower-complete-desc">你已到达悖论之塔的顶端</p>
+                <p id="tower-complete-score">最终分数: <span>0</span></p>
+                <button id="tower-restart-btn">重新挑战</button>
+            </div>
+        </div>
+        
+        <div id="power-up-effect" class="hidden">
+            <div class="power-up-effect-content">
+                <h2 id="power-up-effect-title">道具激活!</h2>
+                <p id="power-up-effect-desc">重力反转</p>
             </div>
         </div>
     </div>

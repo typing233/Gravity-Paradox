@@ -3,6 +3,9 @@ const Game = {
     ROWS: 20,
     CELL_SIZE: 30,
     SYNC_WINDOW: 500,
+    GRAVITY_REVERSE_DURATION: 5000,
+    BOND_THRESHOLD: 3,
+    MAX_TOWER_LEVEL: 10,
     
     SHAPES: [
         [[1, 1, 1, 1]],
@@ -29,6 +32,54 @@ const Game = {
         }
     },
     
+    POWER_UPS: {
+        GRAVITY_REVERSE: {
+            id: 'gravity_reverse',
+            name: '重力反转',
+            icon: '↕️',
+            description: '短暂解除镜像控制，自由操作单侧区域'
+        },
+        LINE_COPY: {
+            id: 'line_copy',
+            name: '行复制',
+            icon: '📋',
+            description: '消除一行时自动复制到对侧'
+        },
+        CLEAR_SINGLE: {
+            id: 'clear_single',
+            name: '单侧清除',
+            icon: '🧹',
+            description: '立即清除当前侧最下方的一行'
+        }
+    },
+    
+    BUFFS: [
+        { id: 'speed_down', name: '时间减缓', icon: '⏳', description: '下落速度降低30%', type: 'buff' },
+        { id: 'score_boost', name: '分数加成', icon: '⭐', description: '所有得分增加50%', type: 'buff' },
+        { id: 'extra_powerup', name: '道具补给', icon: '🎁', description: '获得随机道具x2', type: 'buff' },
+        { id: 'ghost_preview', name: '幽灵增强', icon: '👻', description: '幽灵方块显示更清晰', type: 'buff' }
+    ],
+    
+    DEBUFFS: [
+        { id: 'speed_up', name: '时间加速', icon: '⚡', description: '下落速度增加50%', type: 'debuff' },
+        { id: 'obstacle_spawn', name: '障碍降临', icon: '🪨', description: '立即生成3个障碍', type: 'debuff' },
+        { id: 'score_reduce', name: '分数削减', icon: '💔', description: '所有得分减少30%', type: 'debuff' },
+        { id: 'control_invert', name: '控制反转', icon: '🔄', description: '左右控制反转10秒', type: 'debuff' }
+    ],
+    
+    TOWER_GOALS: [
+        { type: 'lines', amount: 10, description: '消除 10 行' },
+        { type: 'lines', amount: 15, description: '消除 15 行' },
+        { type: 'score', amount: 5000, description: '获得 5000 分' },
+        { type: 'lines', amount: 20, description: '消除 20 行' },
+        { type: 'combo', amount: 5, description: '达成 5 连击' },
+        { type: 'lines', amount: 25, description: '消除 25 行' },
+        { type: 'score', amount: 10000, description: '获得 10000 分' },
+        { type: 'lines', amount: 30, description: '消除 30 行' },
+        { type: 'sync', amount: 3, description: '触发 3 次同步消除' },
+        { type: 'lines', amount: 50, description: '消除 50 行' }
+    ],
+    
     init: function() {
         this.canvasLeft = document.getElementById('board-left');
         this.canvasRight = document.getElementById('board-right');
@@ -42,6 +93,7 @@ const Game = {
         this.scoreEl = document.getElementById('score');
         this.levelEl = document.getElementById('level');
         this.linesEl = document.getElementById('lines');
+        this.comboEl = document.getElementById('combo');
         this.syncStatus = document.getElementById('sync-status');
         this.syncTimer = document.getElementById('sync-timer');
         this.gameOverEl = document.getElementById('game-over');
@@ -51,11 +103,42 @@ const Game = {
         this.startBtn = document.getElementById('start-btn');
         this.restartBtn = document.getElementById('restart-btn');
         
+        this.bondStatusEl = document.getElementById('bond-status');
+        this.bondMultiplierEl = document.getElementById('bond-multiplier');
+        this.gravityReverseIndicator = document.getElementById('gravity-reverse-indicator');
+        this.reverseStatusEl = document.getElementById('reverse-status');
+        this.reverseTimerEl = document.getElementById('reverse-timer');
+        
+        this.towerInfoEl = document.getElementById('tower-info');
+        this.towerLevelEl = document.getElementById('tower-level');
+        this.towerGoalEl = document.getElementById('tower-goal');
+        this.progressFillEl = document.getElementById('progress-fill');
+        this.cardSelectionEl = document.getElementById('card-selection');
+        this.cardTitleEl = document.getElementById('card-title');
+        this.cardSubtitleEl = document.getElementById('card-subtitle');
+        this.cardsContainerEl = document.getElementById('cards-container');
+        this.towerCompleteEl = document.getElementById('tower-complete');
+        this.towerCompleteDescEl = document.getElementById('tower-complete-desc');
+        this.towerCompleteScoreEl = document.getElementById('tower-complete-score').querySelector('span');
+        this.towerRestartBtn = document.getElementById('tower-restart-btn');
+        
+        this.bondEffectEl = document.getElementById('bond-effect');
+        this.bondEffectTitleEl = document.getElementById('bond-effect-title');
+        this.bondEffectDescEl = document.getElementById('bond-effect-desc');
+        this.bondEffectBonusEl = document.getElementById('bond-effect-bonus');
+        
+        this.powerUpEffectEl = document.getElementById('power-up-effect');
+        this.powerUpEffectTitleEl = document.getElementById('power-up-effect-title');
+        this.powerUpEffectDescEl = document.getElementById('power-up-effect-desc');
+        
+        this.modeOptions = document.querySelectorAll('.mode-option');
+        
         this.isRunning = false;
         this.isPaused = false;
         this.gameLoop = null;
         this.lastDropTime = 0;
         this.dropInterval = 1000;
+        this.baseDropInterval = 1000;
         
         this.syncWindowActive = false;
         this.syncTimerStart = null;
@@ -65,6 +148,37 @@ const Game = {
         this.lineClearEffects = [];
         this.obstacleCracks = [];
         
+        this.gameMode = 'classic';
+        this.towerLevel = 1;
+        this.towerProgress = 0;
+        this.currentGoal = null;
+        this.activeBuffs = [];
+        this.activeDebuffs = [];
+        this.syncClearCount = 0;
+        this.maxCombo = 0;
+        
+        this.gravityReverseActive = false;
+        this.gravityReverseSide = null;
+        this.gravityReverseStart = null;
+        this.gravityReverseAnimationId = null;
+        
+        this.bondActive = false;
+        this.bondMultiplier = 1.0;
+        this.bondedCells = [];
+        this.combo = 0;
+        this.lastClearTime = 0;
+        this.COMBO_TIMEOUT = 2000;
+        
+        this.powerUpsLeft = {};
+        this.powerUpsRight = {};
+        this.lineCopyActive = false;
+        this.lineCopySide = null;
+        
+        this.controlInverted = false;
+        this.controlInvertEnd = null;
+        
+        this.scoreMultiplier = 1.0;
+        
         this.setupEvents();
         this.reset();
     },
@@ -73,6 +187,9 @@ const Game = {
         this.score = 0;
         this.level = 1;
         this.lines = 0;
+        this.combo = 0;
+        this.maxCombo = 0;
+        this.syncClearCount = 0;
         
         this.boardLeft = this.createEmptyBoard();
         this.boardRight = this.createEmptyBoard();
@@ -87,8 +204,40 @@ const Game = {
         
         this.gameOverEl.classList.add('hidden');
         this.syncEffectEl.classList.add('hidden');
+        this.bondEffectEl.classList.add('hidden');
+        this.powerUpEffectEl.classList.add('hidden');
+        this.cardSelectionEl.classList.add('hidden');
+        this.towerCompleteEl.classList.add('hidden');
+        
+        this.gravityReverseActive = false;
+        this.gravityReverseSide = null;
+        this.gravityReverseIndicator.classList.add('hidden');
+        
+        this.bondActive = false;
+        this.bondMultiplier = 1.0;
+        this.bondedCells = [];
+        
+        this.powerUpsLeft = {};
+        this.powerUpsRight = {};
+        this.lineCopyActive = false;
+        
+        this.activeBuffs = [];
+        this.activeDebuffs = [];
+        this.dropInterval = this.baseDropInterval;
+        this.scoreMultiplier = 1.0;
+        this.controlInverted = false;
+        
+        if (this.gameMode === 'tower') {
+            this.towerLevel = 1;
+            this.towerProgress = 0;
+            this.towerInfoEl.classList.remove('hidden');
+            this.setupTowerLevel();
+        } else {
+            this.towerInfoEl.classList.add('hidden');
+        }
         
         this.updateUI();
+        this.updatePowerUpUI();
         this.draw();
     },
     
@@ -127,7 +276,25 @@ const Game = {
             return false;
         }
         
+        if (Math.random() < 0.15) {
+            this.grantRandomPowerUp();
+        }
+        
         return true;
+    },
+    
+    grantRandomPowerUp: function() {
+        const powerUpTypes = Object.values(this.POWER_UPS);
+        const powerUp = powerUpTypes[Math.floor(Math.random() * powerUpTypes.length)];
+        const side = Math.random() < 0.5 ? 'left' : 'right';
+        const powerUps = side === 'left' ? this.powerUpsLeft : this.powerUpsRight;
+        
+        if (!powerUps[powerUp.id]) {
+            powerUps[powerUp.id] = 0;
+        }
+        powerUps[powerUp.id]++;
+        
+        this.updatePowerUpUI();
     },
     
     checkCollision: function(board, piece, offsetX, offsetY) {
@@ -154,6 +321,15 @@ const Game = {
         if (!this.isRunning || this.isPaused) return;
         if (!this.currentPieceLeft || !this.currentPieceRight) return;
         
+        if (this.controlInverted) {
+            dx = -dx;
+        }
+        
+        if (this.gravityReverseActive) {
+            this.movePieceSingleSide(dx, dy);
+            return;
+        }
+        
         const mirrorDx = -dx;
         
         if (!this.checkCollision(this.boardLeft, this.currentPieceLeft, dx, dy) &&
@@ -166,9 +342,28 @@ const Game = {
         }
     },
     
+    movePieceSingleSide: function(dx, dy) {
+        const side = this.gravityReverseSide;
+        const piece = side === 'left' ? this.currentPieceLeft : this.currentPieceRight;
+        const board = side === 'left' ? this.boardLeft : this.boardRight;
+        
+        const actualDy = side === 'left' ? dy : -dy;
+        
+        if (!this.checkCollision(board, piece, dx, actualDy)) {
+            piece.x += dx;
+            piece.y += actualDy;
+            this.draw();
+        }
+    },
+    
     rotatePiece: function() {
         if (!this.isRunning || this.isPaused) return;
         if (!this.currentPieceLeft || !this.currentPieceRight) return;
+        
+        if (this.gravityReverseActive) {
+            this.rotatePieceSingleSide();
+            return;
+        }
         
         const rotatedLeft = this.rotateShape(this.currentPieceLeft.shape);
         const rotatedRight = this.rotateShape(this.currentPieceRight.shape, true);
@@ -213,6 +408,36 @@ const Game = {
         this.draw();
     },
     
+    rotatePieceSingleSide: function() {
+        const side = this.gravityReverseSide;
+        const piece = side === 'left' ? this.currentPieceLeft : this.currentPieceRight;
+        const board = side === 'left' ? this.boardLeft : this.boardRight;
+        const isMirror = side === 'right';
+        
+        const rotated = this.rotateShape(piece.shape, isMirror);
+        const original = piece.shape;
+        
+        piece.shape = rotated;
+        
+        const needsKick = this.checkCollision(board, piece, 0, 0);
+        
+        if (needsKick) {
+            if (!this.checkCollision(board, piece, -1, 0)) {
+                piece.x -= 1;
+            } else if (!this.checkCollision(board, piece, 1, 0)) {
+                piece.x += 1;
+            } else if (!this.checkCollision(board, piece, -2, 0)) {
+                piece.x -= 2;
+            } else if (!this.checkCollision(board, piece, 2, 0)) {
+                piece.x += 2;
+            } else {
+                piece.shape = original;
+            }
+        }
+        
+        this.draw();
+    },
+    
     rotateShape: function(shape, mirror = false) {
         const rows = shape.length;
         const cols = shape[0].length;
@@ -236,6 +461,11 @@ const Game = {
         if (!this.isRunning || this.isPaused) return;
         if (!this.currentPieceLeft || !this.currentPieceRight) return;
         
+        if (this.gravityReverseActive) {
+            this.hardDropSingleSide();
+            return;
+        }
+        
         let dropDistanceLeft = 0;
         let dropDistanceRight = 0;
         
@@ -249,7 +479,24 @@ const Game = {
             dropDistanceRight++;
         }
         
-        this.score += (dropDistanceLeft + dropDistanceRight) * 2;
+        this.score += Math.floor((dropDistanceLeft + dropDistanceRight) * 2 * this.scoreMultiplier);
+        this.lockPiece();
+    },
+    
+    hardDropSingleSide: function() {
+        const side = this.gravityReverseSide;
+        const piece = side === 'left' ? this.currentPieceLeft : this.currentPieceRight;
+        const board = side === 'left' ? this.boardLeft : this.boardRight;
+        
+        let dropDistance = 0;
+        const dy = side === 'left' ? 1 : -1;
+        
+        while (!this.checkCollision(board, piece, 0, dy)) {
+            piece.y += dy;
+            dropDistance++;
+        }
+        
+        this.score += Math.floor(dropDistance * 2 * this.scoreMultiplier);
         this.lockPiece();
     },
     
@@ -260,17 +507,26 @@ const Game = {
         this.currentPieceLeft = null;
         this.currentPieceRight = null;
         
+        this.checkBond();
+        
         const clearedLeft = this.clearLines(this.boardLeft, 'left');
         const clearedRight = this.clearLines(this.boardRight, 'right');
         
-        if (clearedLeft.length > 0) {
+        let leftCleared = clearedLeft.length > 0;
+        let rightCleared = clearedRight.length > 0;
+        
+        if (leftCleared) {
             this.addLineClearEffect('left', clearedLeft);
             this.handleLineClear('left', clearedLeft.length);
         }
         
-        if (clearedRight.length > 0) {
+        if (rightCleared) {
             this.addLineClearEffect('right', clearedRight);
             this.handleLineClear('right', clearedRight.length);
+        }
+        
+        if (leftCleared && rightCleared) {
+            this.handleSyncBondClear();
         }
         
         if (!this.spawnPiece()) {
@@ -279,6 +535,72 @@ const Game = {
         
         this.updateUI();
         this.draw();
+    },
+    
+    checkBond: function() {
+        this.bondedCells = [];
+        
+        for (let row = 0; row < this.ROWS; row++) {
+            for (let col = 0; col < this.COLS; col++) {
+                const mirrorCol = this.COLS - 1 - col;
+                const mirrorRow = this.ROWS - 1 - row;
+                
+                if (this.boardLeft[row][col] && this.boardRight[mirrorRow][mirrorCol]) {
+                    if (this.boardLeft[row][col] === this.boardRight[mirrorRow][mirrorCol]) {
+                        this.bondedCells.push({
+                            left: { row, col },
+                            right: { row: mirrorRow, col: mirrorCol },
+                            colorIndex: this.boardLeft[row][col]
+                        });
+                    }
+                }
+            }
+        }
+        
+        const bondCount = this.bondedCells.length;
+        if (bondCount >= this.BOND_THRESHOLD) {
+            this.activateBond(bondCount);
+        } else {
+            this.deactivateBond();
+        }
+    },
+    
+    activateBond: function(bondCount) {
+        this.bondActive = true;
+        this.bondMultiplier = 1.0 + (bondCount - this.BOND_THRESHOLD) * 0.2;
+        
+        this.bondStatusEl.textContent = '羁绊激活!';
+        this.bondStatusEl.classList.add('active');
+        this.bondMultiplierEl.textContent = 'x' + this.bondMultiplier.toFixed(1);
+    },
+    
+    deactivateBond: function() {
+        this.bondActive = false;
+        this.bondMultiplier = 1.0;
+        
+        this.bondStatusEl.textContent = '未羁绊';
+        this.bondStatusEl.classList.remove('active');
+        this.bondMultiplierEl.textContent = 'x1.0';
+    },
+    
+    handleSyncBondClear: function() {
+        if (this.bondActive) {
+            const bonusPoints = Math.floor(5000 * this.bondMultiplier * this.scoreMultiplier);
+            this.score += bonusPoints;
+            
+            this.showBondEffect('双重羁绊!', '双边同步消除触发高倍率加分', bonusPoints);
+        }
+    },
+    
+    showBondEffect: function(title, desc, bonus) {
+        this.bondEffectTitleEl.textContent = title;
+        this.bondEffectDescEl.textContent = desc;
+        this.bondEffectBonusEl.textContent = '+' + bonus + ' 分';
+        this.bondEffectEl.classList.remove('hidden');
+        
+        setTimeout(() => {
+            this.bondEffectEl.classList.add('hidden');
+        }, 1500);
     },
     
     lockPieceToBoard: function(board, piece) {
@@ -329,6 +651,12 @@ const Game = {
             }
         }
         
+        if (this.lineCopyActive && this.lineCopySide === side && clearedLines.length > 0) {
+            this.copyLinesToOtherSide(side, clearedLines);
+            this.lineCopyActive = false;
+            this.lineCopySide = null;
+        }
+        
         for (let i = clearedLines.length - 1; i >= 0; i--) {
             const line = clearedLines[i];
             board.splice(line, 1);
@@ -341,21 +669,79 @@ const Game = {
         return clearedLines;
     },
     
+    copyLinesToOtherSide: function(sourceSide, lines) {
+        const targetSide = sourceSide === 'left' ? 'right' : 'left';
+        const targetBoard = targetSide === 'left' ? this.boardLeft : this.boardRight;
+        
+        lines.forEach(line => {
+            const targetLine = targetSide === 'left' ? line : (this.ROWS - 1 - line);
+            
+            for (let col = 0; col < this.COLS; col++) {
+                if (targetLine >= 0 && targetLine < this.ROWS) {
+                    targetBoard[targetLine][col] = Math.floor(Math.random() * 7) + 1;
+                }
+            }
+        });
+    },
+    
     handleLineClear: function(side, linesCount) {
-        const points = [0, 100, 300, 500, 800];
-        this.score += points[linesCount] * this.level;
+        const now = Date.now();
+        
+        if (now - this.lastClearTime < this.COMBO_TIMEOUT) {
+            this.combo++;
+        } else {
+            this.combo = 1;
+        }
+        this.lastClearTime = now;
+        
+        if (this.combo > this.maxCombo) {
+            this.maxCombo = this.combo;
+        }
+        
+        const basePoints = [0, 100, 300, 500, 800];
+        let points = basePoints[Math.min(linesCount, 4)] * this.level;
+        
+        points *= this.scoreMultiplier;
+        
+        if (this.bondActive) {
+            points *= this.bondMultiplier;
+        }
+        
+        const comboMultiplier = 1 + (this.combo - 1) * 0.1;
+        points *= comboMultiplier;
+        
+        this.score += Math.floor(points);
         this.lines += linesCount;
+        
+        if (this.gameMode === 'tower') {
+            this.updateTowerProgress('lines', linesCount);
+            this.updateTowerProgress('score', Math.floor(points));
+            this.updateTowerProgress('combo', this.combo);
+        }
         
         const newLevel = Math.floor(this.lines / 10) + 1;
         if (newLevel > this.level) {
             this.level = newLevel;
-            this.dropInterval = Math.max(100, 1000 - (this.level - 1) * 100);
+            this.updateDropInterval();
         }
         
         const otherSide = side === 'left' ? 'right' : 'left';
         this.addObstacles(otherSide, linesCount);
         
         this.checkSyncClear(side);
+    },
+    
+    updateDropInterval: function() {
+        let interval = Math.max(100, this.baseDropInterval - (this.level - 1) * 100);
+        
+        if (this.activeBuffs.includes('speed_down')) {
+            interval = interval * 1.3;
+        }
+        if (this.activeDebuffs.includes('speed_up')) {
+            interval = interval * 0.5;
+        }
+        
+        this.dropInterval = Math.max(100, interval);
     },
     
     addObstacles: function(side, count) {
@@ -460,7 +846,18 @@ const Game = {
     triggerSyncEffect: function() {
         this.closeSyncWindow();
         
-        this.score += 10000;
+        const basePoints = 10000;
+        let points = basePoints * this.scoreMultiplier;
+        if (this.bondActive) {
+            points *= this.bondMultiplier;
+        }
+        this.score += Math.floor(points);
+        
+        this.syncClearCount++;
+        
+        if (this.gameMode === 'tower') {
+            this.updateTowerProgress('sync', 1);
+        }
         
         this.boardLeft = this.createEmptyBoard();
         this.boardRight = this.createEmptyBoard();
@@ -491,11 +888,318 @@ const Game = {
         this.scoreEl.textContent = this.score;
         this.levelEl.textContent = this.level;
         this.linesEl.textContent = this.lines;
+        this.comboEl.textContent = this.combo;
+    },
+    
+    updatePowerUpUI: function() {
+        this.updatePowerUpSlot('left', 1, this.POWER_UPS.GRAVITY_REVERSE);
+        this.updatePowerUpSlot('left', 2, this.POWER_UPS.LINE_COPY);
+        this.updatePowerUpSlot('left', 3, this.POWER_UPS.CLEAR_SINGLE);
+        
+        this.updatePowerUpSlot('right', 1, this.POWER_UPS.GRAVITY_REVERSE);
+        this.updatePowerUpSlot('right', 2, this.POWER_UPS.LINE_COPY);
+        this.updatePowerUpSlot('right', 3, this.POWER_UPS.CLEAR_SINGLE);
+    },
+    
+    updatePowerUpSlot: function(side, slotNum, powerUp) {
+        const powerUps = side === 'left' ? this.powerUpsLeft : this.powerUpsRight;
+        const count = powerUps[powerUp.id] || 0;
+        
+        const iconEl = document.getElementById(`icon-${side}-${slotNum}`);
+        const countEl = document.getElementById(`count-${side}-${slotNum}`);
+        
+        if (count > 0) {
+            iconEl.textContent = powerUp.icon;
+            iconEl.classList.add(powerUp.id.replace(/_/g, '-'));
+        } else {
+            iconEl.textContent = '';
+            iconEl.classList.remove(powerUp.id.replace(/_/g, '-'));
+        }
+        
+        countEl.textContent = count;
+    },
+    
+    usePowerUp: function(side, slotNum) {
+        if (!this.isRunning || this.isPaused) return;
+        
+        const powerUps = side === 'left' ? this.powerUpsLeft : this.powerUpsRight;
+        let powerUp;
+        
+        switch(slotNum) {
+            case 1:
+                powerUp = this.POWER_UPS.GRAVITY_REVERSE;
+                break;
+            case 2:
+                powerUp = this.POWER_UPS.LINE_COPY;
+                break;
+            case 3:
+                powerUp = this.POWER_UPS.CLEAR_SINGLE;
+                break;
+        }
+        
+        if (!powerUps[powerUp.id] || powerUps[powerUp.id] <= 0) return;
+        
+        powerUps[powerUp.id]--;
+        
+        this.executePowerUp(side, powerUp);
+        
+        this.updatePowerUpUI();
+    },
+    
+    executePowerUp: function(side, powerUp) {
+        this.showPowerUpEffect(powerUp.name, powerUp.description);
+        
+        switch(powerUp.id) {
+            case 'gravity_reverse':
+                this.activateGravityReverse(side);
+                break;
+            case 'line_copy':
+                this.activateLineCopy(side);
+                break;
+            case 'clear_single':
+                this.clearSingleLine(side);
+                break;
+        }
+    },
+    
+    showPowerUpEffect: function(title, desc) {
+        this.powerUpEffectTitleEl.textContent = title + '!';
+        this.powerUpEffectDescEl.textContent = desc;
+        this.powerUpEffectEl.classList.remove('hidden');
+        
+        setTimeout(() => {
+            this.powerUpEffectEl.classList.add('hidden');
+        }, 1000);
+    },
+    
+    activateGravityReverse: function(side) {
+        this.gravityReverseActive = true;
+        this.gravityReverseSide = side;
+        this.gravityReverseStart = Date.now();
+        
+        this.gravityReverseIndicator.classList.remove('hidden');
+        this.reverseStatusEl.textContent = side === 'left' ? '左侧自由操作' : '右侧自由操作';
+        
+        this.updateGravityReverseTimer();
+    },
+    
+    updateGravityReverseTimer: function() {
+        if (!this.gravityReverseActive) {
+            return;
+        }
+        
+        const now = Date.now();
+        const elapsed = now - this.gravityReverseStart;
+        const remaining = Math.max(0, this.GRAVITY_REVERSE_DURATION - elapsed);
+        
+        if (remaining <= 0) {
+            this.deactivateGravityReverse();
+            return;
+        }
+        
+        this.reverseTimerEl.textContent = (remaining / 1000).toFixed(1) + 's';
+        
+        this.gravityReverseAnimationId = requestAnimationFrame(() => this.updateGravityReverseTimer());
+    },
+    
+    deactivateGravityReverse: function() {
+        this.gravityReverseActive = false;
+        this.gravityReverseSide = null;
+        this.gravityReverseIndicator.classList.add('hidden');
+        
+        if (this.gravityReverseAnimationId) {
+            cancelAnimationFrame(this.gravityReverseAnimationId);
+            this.gravityReverseAnimationId = null;
+        }
+    },
+    
+    activateLineCopy: function(side) {
+        this.lineCopyActive = true;
+        this.lineCopySide = side;
+    },
+    
+    clearSingleLine: function(side) {
+        const board = side === 'left' ? this.boardLeft : this.boardRight;
+        const obstacleBoard = side === 'left' ? this.obstacleBoardLeft : this.obstacleBoardRight;
+        
+        const startRow = side === 'left' ? this.ROWS - 1 : 0;
+        const endRow = side === 'left' ? -1 : this.ROWS;
+        const step = side === 'left' ? -1 : 1;
+        
+        for (let row = startRow; row !== endRow; row += step) {
+            let hasBlocks = false;
+            for (let col = 0; col < this.COLS; col++) {
+                if (board[row][col] || obstacleBoard[row][col]) {
+                    hasBlocks = true;
+                    break;
+                }
+            }
+            
+            if (hasBlocks) {
+                for (let col = 0; col < this.COLS; col++) {
+                    board[row][col] = 0;
+                    obstacleBoard[row][col] = 0;
+                }
+                this.addLineClearEffect(side, [row]);
+                
+                for (let r = row; r > 0; r--) {
+                    board[r] = [...board[r - 1]];
+                    obstacleBoard[r] = [...obstacleBoard[r - 1]];
+                }
+                board[0] = Array(this.COLS).fill(0);
+                obstacleBoard[0] = Array(this.COLS).fill(0);
+                
+                this.handleLineClear(side, 1);
+                break;
+            }
+        }
+        
+        this.updateUI();
+        this.draw();
+    },
+    
+    setupTowerLevel: function() {
+        if (this.towerLevel > this.MAX_TOWER_LEVEL) {
+            this.towerComplete();
+            return;
+        }
+        
+        this.currentGoal = this.TOWER_GOALS[this.towerLevel - 1];
+        this.towerProgress = 0;
+        
+        this.towerLevelEl.textContent = this.towerLevel;
+        this.towerGoalEl.textContent = this.currentGoal.description;
+        this.progressFillEl.style.width = '0%';
+        
+        if (this.towerLevel > 1 && this.towerLevel % 2 === 0) {
+            this.showCardSelection();
+        }
+    },
+    
+    updateTowerProgress: function(type, amount) {
+        if (!this.currentGoal || this.currentGoal.type !== type) return;
+        
+        this.towerProgress += amount;
+        
+        const progressPercent = Math.min(100, (this.towerProgress / this.currentGoal.amount) * 100);
+        this.progressFillEl.style.width = progressPercent + '%';
+        
+        if (this.towerProgress >= this.currentGoal.amount) {
+            this.towerLevel++;
+            this.setupTowerLevel();
+        }
+    },
+    
+    showCardSelection: function() {
+        this.isPaused = true;
+        
+        this.cardTitleEl.textContent = '选择一张卡牌';
+        this.cardSubtitleEl.textContent = `第 ${this.towerLevel} 层奖励`;
+        
+        this.cardsContainerEl.innerHTML = '';
+        
+        const allCards = [...this.BUFFS, ...this.DEBUFFS];
+        const selectedCards = [];
+        
+        while (selectedCards.length < 3 && allCards.length > 0) {
+            const index = Math.floor(Math.random() * allCards.length);
+            selectedCards.push(allCards.splice(index, 1)[0]);
+        }
+        
+        selectedCards.forEach((card, index) => {
+            const cardEl = document.createElement('div');
+            cardEl.className = `card ${card.type}`;
+            cardEl.innerHTML = `
+                <div class="card-icon">${card.icon}</div>
+                <div class="card-title">${card.name}</div>
+                <div class="card-desc">${card.description}</div>
+            `;
+            
+            cardEl.addEventListener('click', () => this.selectCard(card));
+            this.cardsContainerEl.appendChild(cardEl);
+        });
+        
+        this.cardSelectionEl.classList.remove('hidden');
+    },
+    
+    selectCard: function(card) {
+        if (card.type === 'buff') {
+            this.applyBuff(card);
+        } else {
+            this.applyDebuff(card);
+        }
+        
+        this.cardSelectionEl.classList.add('hidden');
+        this.isPaused = false;
+        this.lastDropTime = Date.now();
+    },
+    
+    applyBuff: function(buff) {
+        this.activeBuffs.push(buff.id);
+        
+        switch(buff.id) {
+            case 'speed_down':
+                this.updateDropInterval();
+                break;
+            case 'score_boost':
+                this.scoreMultiplier *= 1.5;
+                break;
+            case 'extra_powerup':
+                for (let i = 0; i < 2; i++) {
+                    this.grantRandomPowerUp();
+                }
+                break;
+            case 'ghost_preview':
+                break;
+        }
+    },
+    
+    applyDebuff: function(debuff) {
+        this.activeDebuffs.push(debuff.id);
+        
+        switch(debuff.id) {
+            case 'speed_up':
+                this.updateDropInterval();
+                break;
+            case 'obstacle_spawn':
+                this.addObstacles('left', 2);
+                this.addObstacles('right', 1);
+                this.draw();
+                break;
+            case 'score_reduce':
+                this.scoreMultiplier *= 0.7;
+                break;
+            case 'control_invert':
+                this.controlInverted = true;
+                this.controlInvertEnd = Date.now() + 10000;
+                break;
+        }
+    },
+    
+    towerComplete: function() {
+        this.isRunning = false;
+        if (this.gameLoop) {
+            cancelAnimationFrame(this.gameLoop);
+            this.gameLoop = null;
+        }
+        
+        this.towerCompleteDescEl.textContent = `你已到达悖论之塔的顶端，最高连击: ${this.maxCombo}`;
+        this.towerCompleteScoreEl.textContent = this.score;
+        this.towerCompleteEl.classList.remove('hidden');
     },
     
     drop: function() {
         if (!this.isRunning || this.isPaused) return;
         if (!this.currentPieceLeft || !this.currentPieceRight) return;
+        
+        if (this.controlInverted && this.controlInvertEnd && Date.now() > this.controlInvertEnd) {
+            this.controlInverted = false;
+        }
+        
+        if (this.gravityReverseActive) {
+            this.dropSingleSide();
+            return;
+        }
         
         const canDropLeft = !this.checkCollision(this.boardLeft, this.currentPieceLeft, 0, 1);
         const canDropRight = !this.checkCollision(this.boardRight, this.currentPieceRight, 0, -1);
@@ -509,6 +1213,34 @@ const Game = {
         }
         
         if (!canDropLeft && !canDropRight) {
+            this.lockPiece();
+        }
+        
+        this.draw();
+    },
+    
+    dropSingleSide: function() {
+        const side = this.gravityReverseSide;
+        const piece = side === 'left' ? this.currentPieceLeft : this.currentPieceRight;
+        const board = side === 'left' ? this.boardLeft : this.boardRight;
+        const otherPiece = side === 'left' ? this.currentPieceRight : this.currentPieceLeft;
+        const otherBoard = side === 'left' ? this.boardRight : this.boardLeft;
+        
+        const dy = side === 'left' ? 1 : -1;
+        const otherDy = side === 'left' ? -1 : 1;
+        
+        const canDrop = !this.checkCollision(board, piece, 0, dy);
+        const canDropOther = !this.checkCollision(otherBoard, otherPiece, 0, otherDy);
+        
+        if (canDrop) {
+            piece.y += dy;
+        }
+        
+        if (canDropOther) {
+            otherPiece.y += otherDy;
+        }
+        
+        if (!canDrop && !canDropOther) {
             this.lockPiece();
         }
         
@@ -562,7 +1294,8 @@ const Game = {
                     ctx.stroke();
                 } else if (board[row][col]) {
                     const colorIndex = board[row][col] - 1;
-                    this.drawCell(ctx, col, row, colors.normal[colorIndex], side);
+                    const isBonded = this.isCellBonded(side, row, col);
+                    this.drawCell(ctx, col, row, colors.normal[colorIndex], side, false, isBonded);
                 }
             }
         }
@@ -580,7 +1313,8 @@ const Game = {
                 }
             }
             
-            ctx.globalAlpha = 0.3;
+            const ghostAlpha = this.activeBuffs.includes('ghost_preview') ? 0.5 : 0.3;
+            ctx.globalAlpha = ghostAlpha;
             for (let row = 0; row < currentPiece.shape.length; row++) {
                 for (let col = 0; col < currentPiece.shape[row].length; col++) {
                     if (currentPiece.shape[row][col]) {
@@ -600,7 +1334,17 @@ const Game = {
         }
     },
     
-    drawCell: function(ctx, x, y, color, side, isGhost = false) {
+    isCellBonded: function(side, row, col) {
+        return this.bondedCells.some(bond => {
+            if (side === 'left') {
+                return bond.left.row === row && bond.left.col === col;
+            } else {
+                return bond.right.row === row && bond.right.col === col;
+            }
+        });
+    },
+    
+    drawCell: function(ctx, x, y, color, side, isGhost = false, isBonded = false) {
         const px = x * this.CELL_SIZE;
         const py = y * this.CELL_SIZE;
         const padding = 2;
@@ -612,6 +1356,12 @@ const Game = {
         
         ctx.fillStyle = color;
         ctx.fillRect(px + padding, py + padding, size, size);
+        
+        if (isBonded) {
+            ctx.strokeStyle = '#4caf50';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(px + padding, py + padding, size, size);
+        }
         
         ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
         ctx.fillRect(px + padding, py + padding, size, 3);
@@ -721,6 +1471,7 @@ const Game = {
                 this.gameLoop = null;
             }
             this.closeSyncWindow();
+            this.deactivateGravityReverse();
             this.isRunning = false;
         }
         
@@ -748,6 +1499,11 @@ const Game = {
             this.lastDropTime = now;
         }
         
+        if (Date.now() - this.lastClearTime > this.COMBO_TIMEOUT && this.combo > 0) {
+            this.combo = 0;
+            this.updateUI();
+        }
+        
         this.drawEffects();
         this.gameLoop = requestAnimationFrame(() => this.update());
     },
@@ -762,6 +1518,22 @@ const Game = {
         } else {
             this.syncStatus.textContent = this.syncWindowActive ? '同步窗口开启!' : '准备就绪';
             this.lastDropTime = Date.now();
+        }
+    },
+    
+    setGameMode: function(mode) {
+        this.gameMode = mode;
+        
+        this.modeOptions.forEach(option => {
+            if (option.dataset.mode === mode) {
+                option.classList.add('active');
+            } else {
+                option.classList.remove('active');
+            }
+        });
+        
+        if (this.isRunning) {
+            this.reset();
         }
     },
     
@@ -796,6 +1568,24 @@ const Game = {
                 case 'R':
                     this.start();
                     break;
+                case '1':
+                    this.usePowerUp('left', 1);
+                    break;
+                case '2':
+                    this.usePowerUp('left', 2);
+                    break;
+                case '3':
+                    this.usePowerUp('left', 3);
+                    break;
+                case '7':
+                    this.usePowerUp('right', 1);
+                    break;
+                case '8':
+                    this.usePowerUp('right', 2);
+                    break;
+                case '9':
+                    this.usePowerUp('right', 3);
+                    break;
             }
         });
         
@@ -803,6 +1593,18 @@ const Game = {
         this.restartBtn.addEventListener('click', () => {
             this.gameOverEl.classList.add('hidden');
             this.start();
+        });
+        
+        this.towerRestartBtn.addEventListener('click', () => {
+            this.towerCompleteEl.classList.add('hidden');
+            this.gameMode = 'tower';
+            this.start();
+        });
+        
+        this.modeOptions.forEach(option => {
+            option.addEventListener('click', () => {
+                this.setGameMode(option.dataset.mode);
+            });
         });
     }
 };
