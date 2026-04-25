@@ -1,7 +1,7 @@
 const Game = {
     COLS: 10,
     ROWS: 20,
-    CELL_SIZE: 30,
+    CELL_SIZE: 24,
     SYNC_WINDOW: 500,
     GRAVITY_REVERSE_DURATION: 5000,
     BOND_THRESHOLD: 3,
